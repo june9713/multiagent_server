@@ -7,7 +7,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import json
+import warnings
 import google.generativeai as genai
+
+# Suppress FutureWarning for google.generativeai
+warnings.filterwarnings('ignore', category=FutureWarning, module='google.generativeai')
 
 
 class BaseAgent(ABC):

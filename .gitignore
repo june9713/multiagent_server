@@ -7,6 +7,9 @@ data/work_docs/
 # Environment variables
 .env
 config/gemini_api_key.txt
+config/credentials.json
+config/token.json
+token.json
 
 # Python
 __pycache__/
