@@ -1,0 +1,35 @@
+# Runtime data
+data/history.db
+data/logs/
+data/state/
+data/work_docs/
+
+# Environment variables
+.env
+config/gemini_api_key.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
