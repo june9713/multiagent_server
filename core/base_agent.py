@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import json
+import asyncio
 import warnings
 import google.generativeai as genai
 
@@ -26,6 +27,7 @@ class BaseAgent(ABC):
         keywords: List[str],
         gemini_api_key: str,
         work_docs_dir: Path,
+        job_category: Optional[str] = None,
         scope: Optional[Dict] = None,
         tools: Optional[List[str]] = None,
         integrations: Optional[List[Dict]] = None
@@ -35,6 +37,7 @@ class BaseAgent(ABC):
         self.role = role
         self.tone = tone
         self.keywords = keywords
+        self.job_category = job_category or "common"
         self.scope = scope or {}
         self.tools = tools or []
         self.integrations = integrations or []
@@ -43,9 +46,10 @@ class BaseAgent(ABC):
         self.work_docs_dir = work_docs_dir / agent_id
         self.work_docs_dir.mkdir(parents=True, exist_ok=True)
         
-        # Gemini setup
+        # Gemini setup (legacy API for 0.1.0rc1)
         genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        # Note: Using legacy API - GenerativeModel not available in 0.1.0rc1
+        self.gemini_api_key = gemini_api_key
         
         # System prompt
         self.system_prompt = self._build_system_prompt()
@@ -168,19 +172,53 @@ class BaseAgent(ABC):
         # Save log
         log_file.write_text(json.dumps(log_data, ensure_ascii=False, indent=2), encoding='utf-8')
     
+    def _proto_to_python_value(self, value: Any) -> Any:
+        """Recursively convert proto values to standard Python types"""
+        # Handle dict-like objects (Struct/Map)
+        if hasattr(value, "items"):
+            return {k: self._proto_to_python_value(v) for k, v in value.items()}
+        # Handle list-like objects (Repeated)
+        elif isinstance(value, (list, tuple)):
+            return [self._proto_to_python_value(v) for v in value]
+        # Handle RepeatedComposite/RepeatedScalar which are iterable but not list
+        elif hasattr(value, "__iter__") and not isinstance(value, (str, bytes)):
+            return [self._proto_to_python_value(v) for v in value]
+        # Base case: primitive types
+        return value
+
+    def _load_project_resources(self) -> str:
+        """Load project resources from data/project_resources.json"""
+        resource_file = Path("data/project_resources.json")
+        if not resource_file.exists():
+            return "등록된 프로젝트 리소스가 없습니다."
+        
+        try:
+            data = json.loads(resource_file.read_text(encoding='utf-8'))
+            resources = data.get("resources", {})
+            if not resources:
+                return "등록된 프로젝트 리소스가 없습니다."
+            
+            lines = ["**공유 프로젝트 리소스** (파일 생성 시 여기에 자동 등록됨):"]
+            for name, info in resources.items():
+                lines.append(f"- {name} ({info['type']}): ID={info['id']}, 용도={info.get('purpose', 'N/A')}")
+            return "\n".join(lines)
+        except Exception:
+            return "프로젝트 리소스를 불러오는 중 오류가 발생했습니다."
+
     async def process(
         self,
         user_message: str,
         session_id: str,
         context_package: Optional[Dict] = None
     ) -> str:
-        """Process message and generate response"""
+        """Process message and generate response (Supports tool calling)"""
         
         # Load current status
         current_status = self.load_current_status()
         
         # Build full prompt with context
-        full_prompt = f"{self.system_prompt}\n\n"
+        resources = self._load_project_resources()
+        full_prompt = f"{self.system_prompt}\n\n{resources}\n\n"
         
         if context_package:
             full_prompt += f"""
@@ -198,22 +236,76 @@ class BaseAgent(ABC):
 **사용자 요청**: {user_message}
 """
         
-        # Call Gemini API
         try:
-            chat = self.model.start_chat(history=self.conversation_history)
-            response = await chat.send_message_async(full_prompt)
+            # Get tools
+            tools = self.get_tool_definitions()
+            
+            # Initialize model with tools if available
+            # Gemini SDK expects tools in a specific list format
+            if tools:
+                model = genai.GenerativeModel(
+                    'gemini-3-flash-preview',
+                    tools=[{'function_declarations': tools}]
+                )
+            else:
+                model = genai.GenerativeModel('gemini-3-flash-preview')
+            
+            chat = model.start_chat()
+            response = chat.send_message(full_prompt)
+            
+            # Main response processing loop (handle tool calls)
+            for _ in range(5): # Limit of 5 tool calls per turn
+                content = response.candidates[0].content
+                if not any(part.function_call for part in content.parts):
+                    break
+                
+                # Collect all tool calls in the current turn
+                tool_call_tasks = []
+                tool_call_names = []
+                for part in content.parts:
+                    if part.function_call:
+                        fc = part.function_call
+                        tool_call_names.append(fc.name)
+                        params = self._proto_to_python_value(fc.args)
+                        tool_call_tasks.append(self.execute_tool(fc.name, params))
+                
+                if tool_call_tasks:
+                    print(f"🛠️ Agent [{self.agent_id}] executing {len(tool_call_tasks)} tools in parallel: {tool_call_names}")
+                    # Execute all tool calls in parallel
+                    results = await asyncio.gather(*tool_call_tasks)
+                    
+                    tool_results = []
+                    for name, result in zip(tool_call_names, results):
+                        tool_results.append(
+                            genai.protos.Part(
+                                function_response=genai.protos.FunctionResponse(
+                                    name=name,
+                                    response={'result': result}
+                                )
+                            )
+                        )
+                    
+                    # Send results back to model
+                    response = chat.send_message(
+                        genai.protos.Content(parts=tool_results)
+                    )
+            
+            # After loop, extract final response text safely
+            parts = response.candidates[0].content.parts
+            response_text = "".join([part.text for part in parts if hasattr(part, 'text') and part.text])
+            
+            # If no text parts found (e.g. only tool calls left), use a fallback or the raw string
+            if not response_text:
+                if any(part.function_call for part in parts):
+                    response_text = "[도구 호출 완료]"
+                else:
+                    response_text = str(response)
             
             # Update history
-            self.conversation_history.append({
-                "role": "user",
-                "parts": [full_prompt]
-            })
-            self.conversation_history.append({
-                "role": "model",
-                "parts": [response.text]
-            })
+            self.conversation_history.append({"role": "user", "content": user_message})
+            self.conversation_history.append({"role": "assistant", "content": response_text})
             
-            return response.text
+            return response_text
             
         except Exception as e:
             return f"Error processing request: {str(e)}"

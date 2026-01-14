@@ -71,6 +71,7 @@ class AgentLoader:
                     keywords=agent_config['keywords'],
                     gemini_api_key=self.gemini_api_key,
                     work_docs_dir=self.work_docs_dir,
+                    job_category=agent_config.get('job_category'),
                     scope=agent_config.get('scope'),
                     tools=agent_config.get('tools'),
                     integrations=agent_config.get('integrations')
