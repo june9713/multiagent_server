@@ -124,12 +124,13 @@ multiagent_server/
 
 ## 🔧 API 엔드포인트
 
-- `GET /` - 서버 상태
-- `GET /api/v1/agents` - 에이전트 목록
-- `POST /api/v1/agent/invoke` - 에이전트 호출
-- `GET /api/v1/agent/{agent_id}/status` - 에이전트 상태
-- `GET /api/v1/sessions` - 세션 목록
-- `GET /api/v1/session/{session_id}/history` - 대화 히스토리
+- `GET /` - 서버 상태 확인
+- `GET /api/v1/agents` - 사용 가능한 에이전트 목록 조회
+- `POST /api/v1/agent/invoke` - 특정 에이전트 호출 및 메시지 전달 (가장 핵심)
+- `POST /api/v1/admin/register_agent` - 런타임 에이전트 동적 등록
+- `GET /api/v1/agent/{agent_id}/status` - 에이전트의 현재 작업 상태 조회
+- `GET /api/v1/sessions` - 전체 대화 세션 목록
+- `GET /api/v1/session/{session_id}/history` - 특정 세션의 대화 히스토리 조회
 
 ## 📝 작업 문서 시스템
 
