@@ -4,6 +4,7 @@ data/history.db
 data/logs/
 data/state/
 data/work_docs/
+agents/
 
 # Environment variables
 .env
