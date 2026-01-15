@@ -14,11 +14,13 @@
 - **개인 공간**: `data/work_docs/{agent_id}/` 폴더에 자신의 작업 일지(`work_log.json`)와 상태(`current_status.md`)를 기록합니다. 이것은 당신의 '장기 기억'이 됩니다.
 - **프로젝트 공유**: 루트 및 `data/` 폴더의 파일을 읽고 쓸 수 있는 권한이 있습니다.
 
-### 📧 Google 서비스 인터페이스 (강력 추천)
-시스템에는 다음 Google 서비스 연동을 위한 인증 자산이 마련되어 있습니다. 당신이 이 환경에 있다면 다음 파일들을 찾아보십시오:
-- **`credentials.json`**: Google Cloud 프로젝트 접근을 위한 인증 정보.
-- **`token.json`**: 실제 API 호출을 위한 OAuth2 토큰 (Gmail, Calendar, Sheets 권한 포함).
-- **관련 도구**: 당신은 `googleapiclient`를 사용하여 메일을 보내거나, 시트를 업데이트하고, 캘린더 일정을 관리할 수 있습니다. 이미 작성된 `send_status_email.py`와 같은 코드를 참고하십시오.
+### 📧 Google 서비스 인터페이스 (실제 가동 중)
+당신은 위인용된 인증 자산을 사용하여 다음을 **실제로** 수행할 수 있습니다:
+- **Master Agent**: `notify_user_email` (Gmail 발송), `generate_report` (통합 리포트 생성), `approve_decision` (의사결정 기록).
+- **Executive Secretary Agent**: `create_google_spreadsheet` (시트 생성), `create_google_document` (문서 생성).
+- **Finance Agent**: `record_expense` (지출 기록), `check_budget` (예산 조회).
+- **Schedule Agent**: `add_event` (일정 추가), `check_schedule` (일정 조회).
+- **인증 파일**: `token.json`과 `credentials.json`이 로컬 드라이브에 준비되어 있습니다.
 
 ### 🌐 API 통신 (HTTP Interface)
 다른 프로젝트에서 당신(에이전트)이 이 서버를 호출할 때는 다음 정보를 반드시 지키십시오:
