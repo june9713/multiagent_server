@@ -78,6 +78,171 @@ class BaseAgent(ABC):
 5. 다른 에이전트에게 작업을 위임할 때는 충분한 컨텍스트를 제공합니다.
 """
     
+    def get_common_tool_definitions(self) -> List[Dict]:
+        """Return common tools available to all agents"""
+        return [
+            {
+                "name": "read_local_file",
+                "description": "로컬 파일을 읽어 내용을 반환합니다.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "읽을 파일의 경로"}
+                    },
+                    "required": ["path"]
+                }
+            },
+            {
+                "name": "write_local_file",
+                "description": "로컬 파일에 내용을 씁니다.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string", "description": "저장할 파일 경로"},
+                        "content": {"type": "string", "description": "저장할 내용"},
+                        "append": {"type": "boolean", "description": "기존 내용에 추가할지 여부"}
+                    },
+                    "required": ["path", "content"]
+                }
+            },
+            {
+                "name": "list_files",
+                "description": "지정된 디렉토리의 파일 목록을 반환합니다.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "directory": {"type": "string", "description": "조회할 디렉토리 (기본값: 에이전트 폴더)"}
+                    }
+                }
+            },
+            {
+                "name": "fetch_web_content",
+                "description": "웹 페이지의 URL에 접속하여 내용을 가져옵니다.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {"type": "string", "description": "접속할 URL"}
+                    },
+                    "required": ["url"]
+                }
+            },
+            {
+                "name": "update_agent_status",
+                "description": "에이전트의 현재 작업 상태 및 계획을 업데이트합니다.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "in_progress": {"type": "array", "items": {"type": "string"}},
+                        "waiting": {"type": "array", "items": {"type": "string"}},
+                        "blocking_issues": {"type": "array", "items": {"type": "string"}},
+                        "next_steps": {"type": "array", "items": {"type": "string"}}
+                    }
+                }
+            }
+        ]
+
+    async def execute_common_tool(self, tool_name: str, parameters: Dict) -> Dict:
+        """Execute common tools for all agents with detailed logging"""
+        action_log_file = self.work_docs_dir.parent.parent / "logs" / "agent_actions.log"
+        action_log_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            log_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "agent_id": self.agent_id,
+                "tool": tool_name,
+                "parameters": parameters
+            }
+            
+            if tool_name == "read_local_file":
+                path_str = parameters['path']
+                file_path = Path(path_str)
+                if not file_path.is_absolute():
+                    if path_str.startswith("data/"):
+                        # Relative to project root's data dir
+                        file_path = self.work_docs_dir.parent.parent / path_str
+                    else:
+                        file_path = self.work_docs_dir / file_path
+                
+                if not file_path.exists():
+                    return {"status": "error", "message": f"File not found at: {file_path}"}
+                
+                content = file_path.read_text(encoding='utf-8')
+                result = {"status": "success", "content": content[:1000] + ("..." if len(content) > 1000 else "")}
+                
+            elif tool_name == "write_local_file":
+                path_str = parameters['path']
+                file_path = Path(path_str)
+                if not file_path.is_absolute():
+                    if path_str.startswith("data/"):
+                        file_path = self.work_docs_dir.parent.parent / path_str
+                    else:
+                        file_path = self.work_docs_dir / file_path
+                
+                # Ensure directory exists
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                mode = 'a' if parameters.get('append') else 'w'
+                with open(file_path, mode, encoding='utf-8') as f:
+                    f.write(parameters['content'])
+                
+                result = {"status": "success", "message": f"File written to {file_path}", "path": str(file_path)}
+
+            elif tool_name == "list_files":
+                dir_path = parameters.get('directory')
+                if dir_path:
+                    dir_path = Path(dir_path)
+                    if not dir_path.is_absolute():
+                        dir_path = self.work_docs_dir / dir_path
+                else:
+                    dir_path = self.work_docs_dir
+                
+                if not dir_path.exists():
+                    return {"status": "error", "message": f"Directory not found: {dir_path}"}
+                
+                files = [f.name for f in dir_path.iterdir()]
+                result = {"status": "success", "files": files}
+
+            elif tool_name == "fetch_web_content":
+                import httpx
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    response = await client.get(parameters['url'], headers={"User-Agent": "Mozilla/5.0"})
+                    response.raise_for_status()
+                    # Return content and metadata for verification
+                    result = {
+                        "status": "success", 
+                        "content": response.text[:2000], 
+                        "url": parameters['url'],
+                        "length": len(response.text)
+                    }
+
+            elif tool_name == "update_agent_status":
+                self.update_current_status(
+                    in_progress=parameters.get('in_progress', []),
+                    waiting=parameters.get('waiting', []),
+                    blocking_issues=parameters.get('blocking_issues', []),
+                    next_steps=parameters.get('next_steps', [])
+                )
+                result = {"status": "success", "message": "Agent status updated"}
+
+            else:
+                result = {"status": "not_implemented", "tool": tool_name}
+
+            # Append to action log
+            log_entry["result"] = result
+            with open(action_log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            
+            return result
+
+        except Exception as e:
+            error_result = {"status": "error", "message": str(e)}
+            # Log error
+            log_entry["result"] = error_result
+            with open(action_log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            return error_result
+
     @abstractmethod
     def get_tool_definitions(self) -> List[Dict]:
         """Return agent-specific tool definitions"""
@@ -237,21 +402,24 @@ class BaseAgent(ABC):
 """
         
         try:
-            # Get tools
-            tools = self.get_tool_definitions()
+            # Get agent-specific tools
+            agent_tools = self.get_tool_definitions()
+            # Get common tools
+            common_tools = self.get_common_tool_definitions()
+            
+            all_tools = agent_tools + common_tools
             
             # Initialize model with tools if available
-            # Gemini SDK expects tools in a specific list format
-            if tools:
+            if all_tools:
                 model = genai.GenerativeModel(
                     'gemini-3-flash-preview',
-                    tools=[{'function_declarations': tools}]
+                    tools=[{'function_declarations': all_tools}]
                 )
             else:
                 model = genai.GenerativeModel('gemini-3-flash-preview')
             
             chat = model.start_chat()
-            response = chat.send_message(full_prompt)
+            response = await chat.send_message_async(full_prompt)
             
             # Main response processing loop (handle tool calls)
             for _ in range(5): # Limit of 5 tool calls per turn
@@ -267,7 +435,12 @@ class BaseAgent(ABC):
                         fc = part.function_call
                         tool_call_names.append(fc.name)
                         params = self._proto_to_python_value(fc.args)
-                        tool_call_tasks.append(self.execute_tool(fc.name, params))
+                        
+                        # Route tool execution
+                        if fc.name in [t['name'] for t in common_tools]:
+                            tool_call_tasks.append(self.execute_common_tool(fc.name, params))
+                        else:
+                            tool_call_tasks.append(self.execute_tool(fc.name, params))
                 
                 if tool_call_tasks:
                     print(f"🛠️ Agent [{self.agent_id}] executing {len(tool_call_tasks)} tools in parallel: {tool_call_names}")
@@ -286,7 +459,7 @@ class BaseAgent(ABC):
                         )
                     
                     # Send results back to model
-                    response = chat.send_message(
+                    response = await chat.send_message_async(
                         genai.protos.Content(parts=tool_results)
                     )
             

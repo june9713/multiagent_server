@@ -1,4 +1,5 @@
 # Runtime data
+agentconfig.json
 data/history.db
 data/logs/
 data/state/

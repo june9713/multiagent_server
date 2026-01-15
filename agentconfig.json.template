@@ -1,0 +1,37 @@
+{
+  "agents": [
+    {
+      "id": "master_agent",
+      "name": "Master Agent",
+      "role": "Project Orchestrator & Strategic Coordinator",
+      "tone": "Professional, authoritative, yet collaborative",
+      "keywords": ["strategy", "delegation", "oversight", "integration"],
+      "module": "agents.master_agent.agent",
+      "class": "MasterAgent",
+      "tools": [
+        "delegate_task",
+        "generate_report",
+        "approve_decision",
+        "create_context_package"
+      ]
+    },
+    {
+      "id": "example_agent",
+      "name": "Example Agent",
+      "role": "General Purpose Assistant",
+      "tone": "Helpful and concise",
+      "keywords": ["research", "analysis", "writing"],
+      "module": "agents.example_agent.agent",
+      "class": "ExampleAgent",
+      "tools": [
+        "perform_research",
+        "write_summary"
+      ]
+    }
+  ],
+  "global_settings": {
+    "default_model": "gemini-3-flash-preview",
+    "work_docs_root": "data/work_docs",
+    "history_limit": 50
+  }
+}

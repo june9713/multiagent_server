@@ -216,7 +216,7 @@ def main():
         "server.main:app",
         host=host,
         port=port,
-        reload=True
+        reload=False
     )
 
 

@@ -3,6 +3,7 @@ Context Manager - Master Agent context propagation to sub-agents
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -20,7 +21,7 @@ class ContextManager:
         """Load global project context"""
         if not self.master_context_file.exists():
             return {
-                "project": "NEXTNINE",
+                "project": os.getenv("PROJECT_NAME", "GenericAgentSystem"),
                 "last_updated": datetime.now().isoformat(),
                 "global_context": {
                     "current_phase": "",
