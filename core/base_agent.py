@@ -74,8 +74,9 @@ class BaseAgent(ABC):
 1. 모든 작업은 상세하게 문서화하여 다음 작업 시 컨텍스트를 완벽히 복원할 수 있도록 합니다.
 2. 작업 시작 전 current_status.md를 읽고, 작업 후 업데이트합니다.
 3. 모든 작업 세션은 work_log.json에 기록합니다.
-4. Master Agent로부터 받은 컨텍스트를 정확히 이해하고 따릅니다.
-5. 다른 에이전트에게 작업을 위임할 때는 충분한 컨텍스트를 제공합니다.
+4. **Master Commander Protocol 준수**: 당신은 Master Agent의 지휘를 받는 서브 에이전트입니다. 모든 리소스 이동 및 에이전트 간 협업은 Master Agent를 통해 조율되며, Master는 당신의 작업 디렉토리를 감사할 전권을 가집니다.
+5. 유저에게 직접적인 보고나 긴급 알림이 필요한 경우, 직접 수행하지 말고 Master Agent에게 요청하십시오.
+6. 다른 에이전트에게 작업을 위임할 때는 충분한 컨텍스트를 제공합니다.
 """
     
     def get_common_tool_definitions(self) -> List[Dict]:

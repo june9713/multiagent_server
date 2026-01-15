@@ -100,3 +100,57 @@ class AgentLoader:
             }
             for agent in self.agents.values()
         ]
+    def add_agent_dynamic(self, agent_config: Dict) -> BaseAgent:
+        """Add a new agent at runtime and persist to config"""
+        # 'id' 또는 'agent_id' 모두 지원 (유연성 확보)
+        agent_id = agent_config.get('id') or agent_config.get('agent_id')
+        if not agent_id:
+            raise ValueError("Agent ID is required (key: 'id' or 'agent_id')")
+            
+        if agent_id in self.agents:
+            raise ValueError(f"Agent {agent_id} already exists")
+            
+        try:
+            # 1. Import and Instantiate
+            # 명시적으로 'id' 키로 통일 (config 저장용)
+            agent_config['id'] = agent_id
+            
+            module_path = agent_config['module']
+            class_name = agent_config['class']
+            module = importlib.import_module(module_path)
+            AgentClass = getattr(module, class_name)
+            
+            print(f"🛠️ Instantiating dynamic agent: {agent_id} using {class_name}")
+            
+            agent = AgentClass(
+                agent_id=agent_id,
+                agent_name=agent_config.get('name') or agent_config.get('agent_name', agent_id),
+                role=agent_config['role'],
+                tone=agent_config.get('tone', 'Professional'),
+                keywords=agent_config.get('keywords', []),
+                gemini_api_key=self.gemini_api_key,
+                work_docs_dir=self.work_docs_dir,
+                job_category=agent_config.get('job_category'),
+                scope=agent_config.get('scope'),
+                tools=agent_config.get('tools', [])
+            )
+            
+            # 2. Add to active agents
+            self.agents[agent_id] = agent
+            
+            # 3. Persist to agentconfig.json
+            with open(self.config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # Update only if not already present in the list
+            if not any(a['id'] == agent_id for a in config['agents']):
+                config['agents'].append(agent_config)
+                with open(self.config_path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            print(f"✨ Dynamically added agent: {agent_config['name']}")
+            return agent
+            
+        except Exception as e:
+            print(f"✗ Failed to add dynamic agent {agent_id}: {str(e)}")
+            raise

@@ -111,6 +111,26 @@ async def list_agents():
     }
 
 
+@app.post("/api/v1/admin/register_agent")
+async def register_agent(agent_config: Dict):
+    """Register a new agent at runtime"""
+    if not agent_loader:
+        raise HTTPException(status_code=500, detail="Agent loader not initialized")
+    
+    try:
+        agent = agent_loader.add_agent_dynamic(agent_config)
+        return {
+            "status": "success",
+            "message": f"Agent {agent.agent_name} registered successfully",
+            "agent_id": agent.agent_id
+        }
+    except Exception as e:
+        import traceback
+        print(f"❌ Registration Error: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @app.post("/api/v1/agent/invoke", response_model=AgentResponse)
 async def invoke_agent(request: AgentRequest):
     """Invoke an agent with a message"""
