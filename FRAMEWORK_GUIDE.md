@@ -87,8 +87,20 @@ class MyNewAgent(BaseAgent):
 - **방법**: 마스터 에이전트에게 `register_subagent` 도구 호출을 지시하거나, `/api/v1/admin/register_agent` API를 호출합니다.
 - **결과**: `agentconfig.json`에 자동으로 기록되며, 시스템 재시작 없이 즉시 해당 에이전트를 호출하여 사용할 수 있습니다.
 
-## 📂 프로젝트 구조
+## 🧠 비즈니스 및 운영 로직 (Operational Logic)
+본 프레임워크는 단순히 기술적인 에이전트 실행을 넘어, 실제 비즈니스 환경에서의 **'작업 연속성'**을 최우선으로 합니다.
+- **Persistent Memory**: 에이전트의 모든 활동은 `data/work_docs`에 영구 저장됩니다. 클론된 프로젝트에서도 이 폴더를 동기화하면 에이전트의 문맥이 유지됩니다.
+- **Reporting Culture**: 마스터 에이전트는 주기적으로 전체 상황을 취합하여 유저에게 리포트해야 하며, 이는 내장된 Google 서비스를 통해 수행됩니다.
+
+## 📧 Google API 통합 상세
+에이전트가 Google 서비스를 사용하기 위해서는 다음 절차가 문서화되어 있어야 합니다:
+1. **인증 자산**: `token.json`과 `credentials.json`이 루트 또는 지정된 경로에 존재해야 합니다.
+2. **사용 가능 라이브러리**: `google-api-python-client`, `google-auth-httplib2`, `google-auth-oauthlib`이 이미 전제되어 있습니다.
+3. **에이전트 가이드**: 에이전트는 본인의 `mission_briefing.md` 또는 `AGENT_ONBOARDING.md`를 통해 시스템에 Google 권한이 활성화되어 있음을 인지하게 됩니다.
+
+## 📂 프로젝트 구조 상세
 - `core/`: 시스템 핵심 로직 (에이전트 로더, 컨텍스트 매니저 등)
 - `agents/`: 프로젝트별 커스텀 에이전트가 위치하는 곳
 - `data/`: 테스트 결과, 로그, 작업 문서가 저장되는 곳 (Git 무시됨)
 - `examples/`: 참고할 수 있는 기존 프로젝트(예: NEXTNINE)의 에이전트 구성 예시
+- `token.json` & `credentials.json`: Google 서비스를 위한 필수 인증 파일 (운영 시 필수 점검)

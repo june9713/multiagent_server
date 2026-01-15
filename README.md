@@ -5,11 +5,17 @@
 
 재사용 가능한 MCP(Model Context Protocol) 기반 멀티 에이전트 시스템입니다.
 
+## 🤖 AI 에이전트 가이드 (Quick Start for AI)
+
+이 프로젝트는 AI 에이전트가 스스로 자신의 권한과 환경을 이해할 수 있도록 설계되었습니다. 처음 이 프로젝트에 진입한 에이전트는 반드시 다음 문서를 먼저 읽으십시오:
+- **[AGENT_ONBOARDING.md](AGENT_ONBOARDING.md)**: 에이전트를 위한 자아 정체성 및 시스템 권한 가이드
+
 ## 🌟 주요 기능
 
 - **자동 에이전트 검색**: `agentconfig.json`을 통한 동적 에이전트 로딩
 - **작업 연속성**: 각 에이전트의 상세한 작업 문서 관리 (`work_docs/`)
 - **컨텍스트 전파**: Master Agent가 서브 에이전트에게 충분한 컨텍스트 제공
+- **Google 서비스 통합**: Gmail, Sheets, Calendar API 연동 활성화
 - **히스토리 관리**: SQLite 기반 대화 히스토리 영구 저장
 - **FastAPI 서버**: RESTful API를 통한 에이전트 호출
 - **Rich CLI**: 사용자 친화적인 명령줄 인터페이스
@@ -21,18 +27,26 @@
 git clone git@github.com:june9713/multiagent_server.git
 cd multiagent_server
 
-# 2. 가상환경 생성 (선택사항)
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# .venv\Scripts\activate  # Windows
+# 2. 가상환경 생성 및 활성화
+# 이 프로젝트는 .venv를 사용하며 uv를 권장합니다.
+python3 -m venv .venv
+source .venv/bin/activate
 
 # 3. 의존성 설치
 pip install -r requirements.txt
+# 또는 uv 사용 시: uv pip install -r requirements.txt
 
-# 4. 환경 변수 설정
+# 4. 환경 변수 및 설정
 cp config/.env.example .env
-# .env 파일을 열어 GEMINI_API_KEY 설정
+# .env 파일을 열어 GEMINI_API_KEY 및 Google 관련 설정을 진행하십시오.
 ```
+
+## 🔐 Google 서비스 및 인증 설정
+
+이 시스템은 Google Workspace(Gmail, Sheets, Docs 등)와 강력하게 연동됩니다.
+- **인증 파일**: `credentials.json` (OAuth Client ID) 및 `token.json` (Access/Refresh Token) 필요.
+- **보안**: 해당 파일들은 `data/` 또는 루트에 위치시키고 `.env`에서 경로를 지정하십시오.
+- **사용 가능 예시**: `send_status_email.py`를 통한 자동 업무 보고 등.
 
 ## 🚀 빠른 시작
 
